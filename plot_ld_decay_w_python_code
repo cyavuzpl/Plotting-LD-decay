@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+
+"""
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+
+from scipy.optimize import curve_fit
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+# Load the PLINK LD results
+ld_data = pd.read_csv("xxx.ld", delim_whitespace=True)
+
+# Calculate distance in kb
+ld_data['Distance_kb'] = abs(ld_data['BP_B'] - ld_data['BP_A']) / 1000  # Convert bp to kb
+
+# Bin the distances and calculate mean r^2 for each bin
+bin_size = 10  # Set the bin size in kb
+ld_data['Distance_bin'] = (ld_data['Distance_kb'] // bin_size) * bin_size  # Group into bins
+binned_data = ld_data.groupby('Distance_bin')['R2'].mean().reset_index()
+
+# Define an exponential decay function
+def exp_decay(x, a, b, c):
+    return a * np.exp(-b * x) + c
+
+# Initial guess for the parameters (a, b, c)
+initial_guess = [1, 0.1, 0]  # This can vary based on your data
+
+# Fit the exponential decay to the binned data
+popt, _ = curve_fit(exp_decay, binned_data['Distance_bin'], binned_data['R2'], p0=initial_guess, maxfev=10000)
+
+# Generate the smooth fitted curve
+x_smooth = np.linspace(binned_data['Distance_bin'].min(), binned_data['Distance_bin'].max(), 1000)
+y_smooth = exp_decay(x_smooth, *popt)
+
+# Plot the LD decay with the new fitted curve
+plt.figure(figsize=(10, 6))
+sns.scatterplot(x='Distance_kb', y='R2', data=ld_data, alpha=0.2, s=15, label='LD pairs')  # Adjusted alpha and size
+plt.plot(x_smooth, y_smooth, color='red', label='Exponential decay fit', linewidth=2)
+
+# Customize the plot
+plt.title('LD Decay Plot (xxxxxxxx)')
+plt.xlabel('Distance between SNPs (kb)')
+plt.ylabel(r'$r^2$')
+plt.legend()
+plt.grid(True)  # Optional grid for easier interpretation
+plt.show()
+
